@@ -18,7 +18,15 @@ export const socketHandler = (io: SocketIOServer) => {
       socket.join(roomId);
       console.log(`User joined room: ${roomId}`);
     });
-
+    socket.on('startTyping', ({ roomId, userId }) => {
+      console.log(`${userId} started typing in room ${roomId}`);
+      socket.to(roomId).emit('userTyping', { userId });
+    });
+    
+    socket.on('stopTyping', ({ roomId, userId }) => {
+      console.log(`${userId} stopped typing in room ${roomId}`);
+      socket.to(roomId).emit('userStopTyping', { userId });
+    });
     
     socket.on("disconnect", () => {
       const userId = [...onlineUsers.entries()]
