@@ -166,4 +166,75 @@ createChatroom=async(httpRequest: CustomRequest): Promise<ControllerResponse>=> 
   };
 }
 }
+sendMessage=async(httpRequest:CustomRequest): Promise<ControllerResponse> =>{
+  try {
+    
+    const userId = httpRequest?.user?.id;
+    const message= httpRequest?.body;
+    
+    
+  
+    if (!userId) {
+      console.error('User ID not found in the request.');
+      throw new Error('Doctor ID is required to update the profile.');
+    }
+  
+    const createmessage = await this.userService.sendMessage(message.chatRoom, message);
+  
+    return {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      statusCode: 201, 
+      body: { message: "Msg send  successfully.", data: createmessage.data },
+    };
+  } catch (error: any) {
+    console.error('Error in updateProfilePic:', error.message);
+  
+    const statusCode = error.message.includes('required') ? 400 : 500; 
+  
+    return {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      statusCode,
+      body: { error: error.message || 'An unknown error occurred.' },
+    };
+  }
+}
+
+getMessages = async (httpRequest: CustomRequest): Promise<ControllerResponse> => {
+  try {
+
+    const roomId = httpRequest?.query?.roomId;
+
+    
+    if (!roomId || typeof roomId !== 'string') {
+      console.error('Invalid room ID');
+      throw new Error('Room ID is required and must be a string.');
+    }
+
+    
+    const messages = await this.userService.getMessage(roomId);
+   console.log(messages)
+    return {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      statusCode: 200, 
+      body: messages, 
+    };
+  } catch (error: any) {
+    console.error('Error in getMessages:', error.message);
+
+    return {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      statusCode: 500, // Internal Server Error
+      body: { error: error.message || 'An unknown error occurred.' },
+    };
+  }
+};
+
 }

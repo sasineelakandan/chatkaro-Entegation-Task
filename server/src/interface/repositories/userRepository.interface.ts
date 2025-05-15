@@ -5,4 +5,6 @@ export interface IUserRepository {
   getUserByEmail(email: string) : Promise<GetUserOutput>;
   userDetails(user:string):Promise<userData|null>
   createChatroom(user:string,user1:string):Promise<SuccessResponse>;
+  sendMessage(roomId:string,message:string):Promise<SuccessResponse>
+  getMessage(roomId:string):Promise<any>
 }

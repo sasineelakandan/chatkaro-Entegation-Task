@@ -23,4 +23,6 @@ export type SuccessResponse ={
   data?:any     
                
   }
+
+
 export type userData=Array<{ [key: string]: any }>

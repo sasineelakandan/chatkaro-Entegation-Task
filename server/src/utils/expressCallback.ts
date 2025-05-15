@@ -27,7 +27,7 @@ export function expressCallback(controller: any) {
         res.set(httpResponse.headers);
       }
 
-      // Set the token as a cookie if it exists in the response body
+      
       if (httpResponse.accessToken) {
         res.cookie("accessToken", httpResponse.accessToken, {
           httpOnly: false,

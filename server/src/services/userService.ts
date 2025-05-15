@@ -124,4 +124,28 @@ export class UserService implements IUserService {
       };
     }
 }
+sendMessage=async(roomId: string, message: any): Promise<SuccessResponse> =>{
+  try {
+    const chatmessage = await this.userRepository.sendMessage(
+      roomId,
+      message
+    );
+    return chatmessage;
+  } catch (error: any) {
+    console.log("Error in chat", error.message);
+    throw new Error(error.message);
+  }
+ }
+ getMessage=async(roomId: string): Promise<any> =>{
+  try {
+    const chatmessage = await this.userRepository.getMessage(
+      roomId
+      
+    );
+    return chatmessage;
+  } catch (error: any) {
+    console.log("Error in chat", error.message);
+    throw new Error(error.message);
+  }
+ }
 }

@@ -32,4 +32,9 @@ router
   .route("/chatrooms")
   .post(authMiddleware, expressCallback(controller.createChatroom));
 
+router
+  .route('/messages')
+  .get(authMiddleware,expressCallback(controller.getMessages))
+  .post(authMiddleware,expressCallback(controller.sendMessage))
+
 export default router;

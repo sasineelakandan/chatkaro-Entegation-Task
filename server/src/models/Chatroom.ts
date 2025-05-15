@@ -18,8 +18,7 @@ const ChatRoomSchema = new Schema<IChatRoom>(
       },
     ],
     lastMessage: {
-      type: Schema.Types.ObjectId,
-      ref: 'Message',
+      type: String,
     },
   },
   {
