@@ -37,4 +37,9 @@ router
   .get(authMiddleware,expressCallback(controller.getMessages))
   .post(authMiddleware,expressCallback(controller.sendMessage))
 
+router
+  .route('/messages/upload')
+  .post(upload.single('file'),authMiddleware, expressCallback(controller.mediaFiles));
+
+
 export default router;

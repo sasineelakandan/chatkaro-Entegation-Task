@@ -14,6 +14,7 @@ import { BsThreeDotsVertical, BsArrowLeft } from 'react-icons/bs';
 import { RiSendPlaneFill } from 'react-icons/ri';
 import { EmojiPicker } from '../component/EmojiPicker';
 import axiosInstance from '../utils/axiosInstance';
+import AttachmentModal from '../component/attachmentModel';
 
 type User = {
   _id: string;
@@ -55,7 +56,8 @@ const ChatApp = () => {
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [selectedAttachmentType, setSelectedAttachmentType] = useState<'image' | 'document' | 'video' | 'audio' | null>(null);
   // Initialize socket connection
   useEffect(() => {
     if (!user) return;
@@ -170,6 +172,63 @@ const ChatApp = () => {
       };
     }
   }, [socket, selectedUser]);
+
+  const handleFileUpload = async (file: File, type: 'image' | 'document' | 'video' | 'audio') => {
+    if (!selectedUser || !user || !socket) return;
+
+    try {
+      const formData = new FormData();
+      console.log(file)
+      formData.append('file', file);
+      formData.append('chatRoom', selectedUser.chatRoomId || '');
+      formData.append('sender', user._id);
+      formData.append('messageType', type);
+       console.log(formData)
+      const response = await axiosInstance.post('/messages/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      const message = response.data;
+      socket.emit('sendMessage', message);
+
+      
+      setMessages(prev => [...prev, message]);
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+    }
+  };
+
+  const handleFileInput = (type: 'image' | 'document' | 'video' | 'audio') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    
+    // Set accept attribute based on file type
+    switch (type) {
+      case 'image':
+        input.accept = 'image/*';
+        break;
+      case 'document':
+        input.accept = '.pdf,.doc,.docx,.txt';
+        break;
+      case 'video':
+        input.accept = 'video/*';
+        break;
+      case 'audio':
+        input.accept = 'audio/*';
+        break;
+    }
+
+    input.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files && files.length > 0) {
+        handleFileUpload(files[0], type);
+      }
+    };
+
+    input.click();
+  };
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -500,9 +559,9 @@ const ChatApp = () => {
             }}
           >
             <div className="space-y-3">
-              {messages.map((msg) => (
+              {messages.map((msg:any,i) => (
                 <div
-                  key={msg._id}
+                key={i}
                   className={`flex ${msg.sender === user?._id ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
@@ -512,7 +571,43 @@ const ChatApp = () => {
                         : 'bg-white rounded-tl-none'
                       }`}
                   >
-                    <p className="text-gray-800">{msg.content}</p>
+                    {msg.messageType === 'text' && (
+  <p className="text-gray-800">{msg.content}</p>
+)}
+
+{msg.messageType === 'image' && (
+  <img
+    src={msg.content}
+    alt="sent image"
+    className="max-w-full h-auto rounded"
+  />
+)}
+
+{msg.messageType === 'audio' && (
+  <audio controls className="w-full">
+    <source src={msg.content} type="audio/mpeg" />
+    Your browser does not support the audio element.
+  </audio>
+)}
+
+{msg.messageType === 'video' && (
+  <video controls className="w-full max-h-64">
+    <source src={msg.content} type="video/mp4" />
+    Your browser does not support the video tag.
+  </video>
+)}
+
+{msg.messageType === 'document' && (
+  <a
+    href={msg.content}
+    download
+    className="text-blue-500 underline break-words"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    📄 Download Document
+  </a>
+)}
                     <div className={`flex justify-end text-xs mt-1 items-center space-x-1 
                       ${msg.sender === user?._id ? 'text-blue-600' : 'text-gray-500'}`}>
                       <span>{formatMessageTime(msg.createdAt)}</span>
@@ -559,9 +654,12 @@ const ChatApp = () => {
             >
               <FiSmile size={22} />
             </button>
-            <button className="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100">
-              <FiPaperclip size={22} />
-            </button>
+            <button 
+  className="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100"
+  onClick={() => setShowAttachmentModal(true)}
+>
+  <FiPaperclip size={22} />
+</button>
             <input
               type="text"
               placeholder="Type a message..."
@@ -599,7 +697,17 @@ const ChatApp = () => {
           </div>
         </div>
       )}
+       {showAttachmentModal && (
+      <AttachmentModal 
+        onClose={() => setShowAttachmentModal(false)}
+        onSelect={(type) => {
+          setShowAttachmentModal(false);
+          handleFileInput(type);
+        }}
+      />
+    )}
     </div>
+    
   );
 };
 

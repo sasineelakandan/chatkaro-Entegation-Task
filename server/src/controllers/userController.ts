@@ -216,7 +216,7 @@ getMessages = async (httpRequest: CustomRequest): Promise<ControllerResponse> =>
 
     
     const messages = await this.userService.getMessage(roomId);
-   console.log(messages)
+   
     return {
       headers: {
         "Content-Type": "application/json",
@@ -236,5 +236,42 @@ getMessages = async (httpRequest: CustomRequest): Promise<ControllerResponse> =>
     };
   }
 };
+mediaFiles=async(httpRequest:CustomRequest): Promise<ControllerResponse>=>{
+  try {
+    const file = httpRequest.file as Express.Multer.File;
+      const filePath = file?.path
+    const userId = httpRequest?.user?.id;
+    const message= httpRequest?.body;
+    
+    message.content=filePath
+    console.log(message)
+    if (!userId) {
+      console.error('User ID not found in the request.');
+      throw new Error('Doctor ID is required to update the profile.');
+    }
+  
+    const createmessage = await this.userService.sendMessage(message.chatRoom, message);
+  
+    return {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      statusCode: 201, 
+      body: { message: "Msg send  successfully.", data: 'createmessage.data'},
+    };
+  } catch (error: any) {
+    console.error('Error in updateProfilePic:', error.message);
+  
+    const statusCode = error.message.includes('required') ? 400 : 500; 
+  
+    return {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      statusCode,
+      body: { error: error.message || 'An unknown error occurred.' },
+    };
+  }
+}
 
 }

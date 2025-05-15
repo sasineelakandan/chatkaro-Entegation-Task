@@ -7,5 +7,8 @@ export interface IUserController {
   userDetails(httpRequest:CustomRequest):Promise<ControllerResponse>
   createChatroom(httpRequest:CustomRequest):Promise<ControllerResponse>
   sendMessage(httpRequest:Request):Promise<ControllerResponse>
+  mediaFiles(httpRequest: Request): Promise<ControllerResponse>
   getMessages(httpRequest:Request):Promise<ControllerResponse>
+  
+  
 }

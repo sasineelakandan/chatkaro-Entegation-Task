@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
 
-const onlineUsers = new Map<string, string>(); // userId => socket.id
+const onlineUsers = new Map<string, string>()
 
 export const socketHandler = (io: SocketIOServer) => {
   io.on("connection", (socket: Socket) => {
