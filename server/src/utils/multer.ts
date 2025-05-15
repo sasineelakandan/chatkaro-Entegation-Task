@@ -29,7 +29,7 @@ const storage = new CloudinaryStorage({
     } else if (mime.startsWith('video/') || mime.startsWith('audio/')) {
       resourceType = 'video';
       folder = 'media';
-      allowed_formats = ['mp4', 'webm', 'ogg', 'mp3', 'wav'];
+      allowed_formats = ['mp4', 'webm', 'ogg','mov','avi','webm','mkv', 'mp3', `aac`,'wav'];
     } else {
       resourceType = 'raw';
       folder = 'documents';

@@ -213,10 +213,10 @@ const ChatApp = () => {
         input.accept = '.pdf,.doc,.docx,.txt';
         break;
       case 'video':
-        input.accept = 'video/*';
+        input.accept = 'video/*,.mp4,.mov,.avi,.webm,.mkv';
         break;
       case 'audio':
-        input.accept = 'audio/*';
+        input.accept = 'audio/*,.mp3,.wav,.ogg,.aac'
         break;
     }
 
