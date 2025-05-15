@@ -7,7 +7,9 @@ export function signupValidator(
   next: NextFunction
 ) {
   try {
+    console.log(req)
     const { username, email, password } = req.body;
+    console.log(username)
 
     if (!username) throw new Error("Username is required");
     if (

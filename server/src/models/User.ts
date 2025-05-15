@@ -1,5 +1,6 @@
+// models/User.js
 import { Schema, model } from "mongoose";
-import { userValidators } from "./User.validator"; // Adjust the import path as necessary
+import { userValidators } from "./User.validator"; // Adjust path if needed
 
 const UserSchema = new Schema(
   {
@@ -24,7 +25,6 @@ const UserSchema = new Schema(
         message: userValidators.email.message,
       },
     },
-    
     password: {
       type: String,
       required: true,
@@ -33,10 +33,22 @@ const UserSchema = new Schema(
         message: userValidators.password.message,
       },
     },
-    
+    avatar: {
+      type: String, 
+    },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+    lastSeen: {
+      type: Date,
+    },
+    socketId: {
+      type: String,
+    },
   },
   {
-    timestamps: true,
+    timestamps: true, 
   }
 );
 

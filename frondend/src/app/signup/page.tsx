@@ -2,52 +2,69 @@
 
 import React, { useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import 'react-toastify/dist/ReactToastify.css';
 import axiosInstance from '../utils/axiosInstance';
-type LoginFormInputs = {
+
+type SignUpFormInputs = {
   email: string;
   username: string;
   password: string;
+  image: FileList;  // for file input
 };
 
 const SignUp: React.FC = () => {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormInputs>();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SignUpFormInputs>();
   const [showPassword, setShowPassword] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   const router = useRouter();
 
-  
-const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
-  try {
-    const response = await axiosInstance.post(`${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/signup`, data );
-    
-    localStorage.setItem('token', response.data.accessToken);
+  const onSubmit: SubmitHandler<SignUpFormInputs> = async (data) => {
+    try {
+      const formData = new FormData();
+      formData.append('email', data.email);
+      formData.append('username', data.username);
+      formData.append('password', data.password);
+      if (data.image && data.image.length > 0) {
+        formData.append('file', data.image[0]);
+      }
 
-    toast.success('Login successful! Redirecting...', {
-      position: 'top-right',
-      autoClose: 2000,
-      theme: 'colored',
-    });
+      const response = await axiosInstance.post(
+        `${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/signup`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
+      console.log(response.data)
+      localStorage.setItem('user', response.data);
+      localStorage.setItem('token', response.data.accessToken);
 
-    setTimeout(() => {
-      router.push('/home');
-    }, 2000);
-  } catch (error: any) {
-    const message =
-      error.response?.data?.error ||
-      error.response?.data?.title ||
-      'Invalid credentials. Please check your login details.';
+      toast.success('Signup successful! Redirecting...', {
+        position: 'top-right',
+        autoClose: 2000,
+        theme: 'colored',
+      });
 
-    toast.error(message, {
-      position: 'top-right',
-      autoClose: 3000,
-      theme: 'colored',
-    });
-  }
-};
+      setTimeout(() => {
+        router.push('/home');
+      }, 2000);
+    } catch (error: any) {
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.title ||
+        'Invalid credentials. Please check your details.';
+
+      toast.error(message, {
+        position: 'top-right',
+        autoClose: 3000,
+        theme: 'colored',
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 p-4">
@@ -63,13 +80,49 @@ const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
                 isHovered ? 'opacity-20' : ''
               }`}
             />
-            <h1 className="text-3xl font-bold text-white relative z-10">Welcome Back</h1>
-            <p className="text-white/90 mt-2 relative z-10">Sign in to your account</p>
+            <h1 className="text-3xl font-bold text-white relative z-10">Create Account</h1>
+            <p className="text-white/90 mt-2 relative z-10">Sign up to get started</p>
           </div>
 
           <div className="p-8">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Email Field */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" encType="multipart/form-data">
+              {/* Profile Image */}
+              {/* Profile Image */}
+<div className="space-y-2">
+  <label className="block text-sm font-medium text-white/80">Profile Image</label>
+  <input
+    type="file"
+    accept="image/*"
+    {...register('image', {
+      required: 'Profile image is required',
+      validate: {
+        isImage: (files) =>
+          files && files.length > 0 && files[0].type.startsWith('image/')
+            ? true
+            : 'Only image files are allowed',
+      },
+    })}
+    onChange={(e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setPreviewImage(URL.createObjectURL(file));
+      }
+    }}
+    className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none transition-all"
+  />
+  {previewImage && (
+    <img
+      src={previewImage}
+      alt="Preview"
+      className="mt-2 w-24 h-24 object-cover rounded-full border-2 border-purple-500"
+    />
+  )}
+  {errors.image && (
+    <p className="text-pink-400 text-xs mt-1 animate-fadeIn">{errors.image.message}</p>
+  )}
+</div>
+
+              {/* Email */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-white/80">Email</label>
                 <input
@@ -78,8 +131,8 @@ const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
                     required: 'Email is required',
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address'
-                    }
+                      message: 'Invalid email address',
+                    },
                   })}
                   className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
                   placeholder="Enter your email"
@@ -89,14 +142,14 @@ const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
                 )}
               </div>
 
-              {/* Username Field */}
+              {/* Username */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-white/80">Username</label>
                 <input
                   type="text"
                   {...register('username', {
                     required: 'Username is required',
-                    minLength: { value: 3, message: 'Minimum 3 characters' }
+                    minLength: { value: 3, message: 'Minimum 3 characters' },
                   })}
                   className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
                   placeholder="Enter your username"
@@ -106,7 +159,7 @@ const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
                 )}
               </div>
 
-              {/* Password Field */}
+              {/* Password */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-white/80">Password</label>
                 <div className="relative">
@@ -114,7 +167,7 @@ const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
                     type={showPassword ? 'text' : 'password'}
                     {...register('password', {
                       required: 'Password is required',
-                      minLength: { value: 6, message: 'Minimum 6 characters' }
+                      minLength: { value: 6, message: 'Minimum 6 characters' },
                     })}
                     className="w-full px-4 py-3 pr-12 bg-white/5 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
                     placeholder="Enter your password"
@@ -132,12 +185,7 @@ const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
                 )}
               </div>
 
-              {/* Forgot Password Link */}
-              <div className="flex justify-end">
-               
-              </div>
-
-              {/* Submit Button */}
+              {/* Submit */}
               <div>
                 <button
                   type="submit"
@@ -168,15 +216,15 @@ const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         ></path>
                       </svg>
-                      Signup...
+                      Signing up...
                     </>
                   ) : (
-                    'Sign in'
+                    'Sign up'
                   )}
                 </button>
               </div>
 
-              {/* Sign Up Link */}
+              {/* Already have account */}
               <div className="text-center text-sm text-white/80">
                 Already have an account?{' '}
                 <button

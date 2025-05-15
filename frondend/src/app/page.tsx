@@ -23,7 +23,8 @@ const Login: React.FC = () => {
   const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
     try {
       const response = await axiosInstance.post(`${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/login`, data );
-      
+     
+      localStorage.setItem('user',JSON.stringify({...response.data}));
       localStorage.setItem('token', response.data.accessToken);
   
       toast.success('Login successful! Redirecting...', {

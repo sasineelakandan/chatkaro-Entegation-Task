@@ -5,6 +5,8 @@ import { UserRepository } from "../repositories/userRepository";
 import { UserService } from "../services/userService";
 import { signupValidator } from "../middlewares/validators/signupValidators";
 import { loginValidator } from "../middlewares/validators/loginValidator";
+import upload from "../utils/multer";
+import authMiddleware from "../middlewares/jwt/authMiddleware";
 
 const router = Router();
 
@@ -16,10 +18,18 @@ const controller = new UserController(service);
 
 router
   .route("/signup")
-  .post(signupValidator, expressCallback(controller.userSignup));
+  .post(upload.single('file'),signupValidator ,expressCallback(controller.userSignup));
 
 router
   .route("/login")
   .post(loginValidator, expressCallback(controller.userLogin));
+
+router
+  .route('/users')
+  .get(authMiddleware, expressCallback(controller.userDetails))
+
+router
+  .route("/chatrooms")
+  .post(authMiddleware, expressCallback(controller.createChatroom));
 
 export default router;
