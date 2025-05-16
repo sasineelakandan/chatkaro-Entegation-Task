@@ -79,11 +79,11 @@ const ChatApp = () => {
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
-
+  const [isOpen, setIsOpen] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Error handling with debounce
+  
   const showError = useDebounce((message: string) => {
     setError(message);
     const timeout = setTimeout(() => setError(null), 5000);
@@ -138,6 +138,9 @@ const ChatApp = () => {
           )
         );
       }
+
+      
+
     };
 
     const handleMessageDelivered = ({ messageId, userId }: any) => {
@@ -425,7 +428,18 @@ const ChatApp = () => {
     }
   };
 
-  // UI helpers
+  const handleLogout = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+
+    try {
+        await axiosInstance.post(`/logout`,{});
+        localStorage.removeItem('user'); 
+        window.location.href = '/'; 
+    } catch (error) {
+        console.error('Logout failed:', error);
+    }
+};
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, typingUsers]);
@@ -442,17 +456,14 @@ const ChatApp = () => {
     setNewMessage(prev => prev + emoji);
   };
 
-  // const formatMessageTime = (dateString: string) => {
-  //   const date = new Date(dateString);
-  //   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  // };
+ 
   const formatMessageTime = (timestamp: string | number | Date) => {
     const date = new Date(timestamp);
     if(!isNaN(date.getTime()) ){
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
   };
-  // return isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
   
 
   const getTypingIndicatorText = () => {
@@ -499,9 +510,23 @@ const ChatApp = () => {
             />
             <span className="font-semibold text-lg">{user?.username}</span>
           </div>
-          <button className="text-white hover:text-gray-200">
-            <BsThreeDotsVertical size={20} />
-          </button>
+          <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-white hover:text-gray-200"
+      >
+        <BsThreeDotsVertical size={20} />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg z-10">
+          <a
+            href="/"
+            onClick={handleLogout}
+            className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+          >
+            Logout
+          </a>
+        </div>
+      )}
         </div>
 
         {/* Search */}

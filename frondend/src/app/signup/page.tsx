@@ -50,7 +50,7 @@ const SignUp: React.FC = () => {
       });
 
       setTimeout(() => {
-        router.push('/home');
+        router.push('/');
       }, 2000);
     } catch (error: any) {
       const message =

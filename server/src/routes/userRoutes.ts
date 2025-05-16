@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Request, Response, Router } from "express";
 import { expressCallback } from "../utils/expressCallback";
 import { UserController } from "../controllers/userController";
 import { UserRepository } from "../repositories/userRepository";
@@ -41,5 +41,18 @@ router
   .route('/messages/upload')
   .post(upload.single('file'),authMiddleware, expressCallback(controller.mediaFiles));
 
-
+  
+  
+  
+  router.route("/logout").post((req:Request, res:Response) => {
+    
+    res.clearCookie("accessToken", {
+     
+    });
+    
+    res.clearCookie("refreshToken", {
+     
+    });
+    res.status(200).json({ message: "Logged out successfully" });
+  });
 export default router;
