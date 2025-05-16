@@ -8,11 +8,8 @@ import { useRouter } from 'next/navigation';
 import 'react-toastify/dist/ReactToastify.css';
 import Link from 'next/link';
 import axiosInstance from './utils/axiosInstance';
+import {LoginFormInputs}from '../app/types/index'
 
-type LoginFormInputs = {
-  email: string;
-  password: string;
-};
 
 const Login: React.FC = () => {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormInputs>();

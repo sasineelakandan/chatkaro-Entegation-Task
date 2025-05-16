@@ -14,32 +14,10 @@ import { EmojiPicker } from '../component/EmojiPicker';
 import axiosInstance from '../utils/axiosInstance';
 import AttachmentModal from '../component/attachmentModel';
 import React from 'react';
+import { User,Message}from '../types/index'
 
-type User = {
-  _id: string;
-  username: string;
-  email: string;
-  avatar: string;
-  isOnline: boolean;
-  lastMessage?: string;
-  time?: string;
-  unread?: number;
-  chatRoomId?: string;
-};
 
-type Message = {
-  _id: string;
-  chatRoom: string;
-  sender: string;
-  messageType: "text" | "image" | "video" | "file";
-  content: string;
-  seenBy: string[];
-  deliveredTo: string[];
-  deletedFor: string[];
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-};
+
 
 const useDebounce = (callback: Function, delay: number) => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -408,7 +386,7 @@ const ChatApp = () => {
     fetchUsers();
   }, []);
 
-  // User interactions
+  
   const handleUserClick = async (selectedUser: User) => {
     try {
       const response = await axiosInstance.post(

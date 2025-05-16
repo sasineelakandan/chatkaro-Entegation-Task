@@ -18,18 +18,14 @@ const authMiddleware = async (
 ): Promise<void> => {
   const accessToken = req.cookies.accessToken;
   const refreshToken = req.cookies.refreshToken;
-  const authHeader = req.headers.authorization;
-  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+  
+ 
 
   try {
     let decoded: UserPayload | null = null;
 
     
-    if (bearerToken) {
-      decoded = jwt.verify(bearerToken, JWT_SECRET()) as UserPayload;
-      req.user = decoded;
-      return next();
-    }
+   
 
     
     if (accessToken) {
@@ -38,7 +34,6 @@ const authMiddleware = async (
       return next();
     }
 
-    // 3. If accessToken is missing/expired, use refreshToken to issue new accessToken
     if (refreshToken) {
       decoded = jwt.verify(refreshToken, JWT_SECRET()) as UserPayload;
 

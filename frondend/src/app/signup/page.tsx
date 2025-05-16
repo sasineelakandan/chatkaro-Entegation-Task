@@ -6,13 +6,8 @@ import { toast, ToastContainer } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import 'react-toastify/dist/ReactToastify.css';
 import axiosInstance from '../utils/axiosInstance';
+import {SignUpFormInputs}from '../types/index'
 
-type SignUpFormInputs = {
-  email: string;
-  username: string;
-  password: string;
-  image: FileList;  // for file input
-};
 
 const SignUp: React.FC = () => {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SignUpFormInputs>();
