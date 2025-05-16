@@ -136,11 +136,11 @@ sendMessage=async(roomId: string, message: any): Promise<SuccessResponse> =>{
     throw new Error(error.message);
   }
  }
- getMessage=async(roomId: string): Promise<any> =>{
+ getMessage=async(roomId: string,userId:string): Promise<any> =>{
   try {
     const chatmessage = await this.userRepository.getMessage(
-      roomId
-      
+      roomId,
+      userId
     );
     return chatmessage;
   } catch (error: any) {

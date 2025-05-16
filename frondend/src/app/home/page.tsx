@@ -1,11 +1,9 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import {
- 
   FiSmile,
   FiPaperclip,
- 
   FiSearch,
   FiMessageSquare
 } from 'react-icons/fi';
@@ -42,6 +40,29 @@ type Message = {
   __v: number;
 };
 
+const useDebounce = (callback: Function, delay: number) => {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (...args: any[]) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  };
+};
+
 const ChatApp = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -54,10 +75,28 @@ const ChatApp = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
-  const [selectedAttachmentType, setSelectedAttachmentType] = useState<'image' | 'document' | 'video' | 'audio' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Error handling with debounce
+  const showError = useDebounce((message: string) => {
+    setError(message);
+    const timeout = setTimeout(() => setError(null), 5000);
+    setErrorTimeout(timeout);
+  }, 300);
+
+  useEffect(() => {
+    return () => {
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+    };
+  }, [errorTimeout]);
+
   // Initialize socket connection
   useEffect(() => {
     if (!user) return;
@@ -72,49 +111,23 @@ const ChatApp = () => {
       console.log("Socket connected:", newSocket.id);
     });
 
+    newSocket.on("connect_error", (err) => {
+      showError("Connection error. Trying to reconnect...");
+      console.error("Socket connection error:", err);
+    });
+
     return () => {
       newSocket.disconnect();
     };
   }, [user]);
 
+  // Socket event handlers
   useEffect(() => {
     if (!socket || !user) return;
-  
-    socket.emit("userConnected", user._id);
-  
-    if (selectedUser?.chatRoomId) {
-      const roomId = selectedUser.chatRoomId;
-      const userId = user._id;
-  
-      // Join room
-      socket.emit("joinRoom", roomId);
-      console.log(`Emit joinRoom for room: ${roomId}`);
-  
-      // Listen for others typing
-      const handleTyping = ({ userId }: { userId: string }) => {
-        setTypingUsers(prev => 
-          prev.includes(userId) ? prev : [...prev, userId]
-        );
-      };
-  
-      const handleStopTyping = ({ userId }: { userId: string }) => {
-        setTypingUsers(prev => prev.filter(id => id !== userId));
-      };
-  
-      socket.on("userTyping", handleTyping);
-      socket.on("userStopTyping", handleStopTyping);
-  
-      return () => {
-        socket.off("userTyping", handleTyping);
-        socket.off("userStopTyping", handleStopTyping);
-      };
-    }
-  }, [socket, selectedUser, user]);
 
-  useEffect(() => {
     const handleNewMessage = (message: Message) => {
       setMessages(prev => [...prev, message]);
-  
+
       if (selectedUser && message.chatRoom === selectedUser.chatRoomId) {
         setUsers(prevUsers =>
           prevUsers.map(u =>
@@ -125,7 +138,7 @@ const ChatApp = () => {
         );
       }
     };
-  
+
     const handleMessageDelivered = ({ messageId, userId }: any) => {
       setMessages(prev =>
         prev.map(msg =>
@@ -135,7 +148,7 @@ const ChatApp = () => {
         )
       );
     };
-  
+
     const handleMessageSeen = ({ messageId, userId }: any) => {
       setMessages(prev =>
         prev.map(msg =>
@@ -145,184 +158,80 @@ const ChatApp = () => {
         )
       );
     };
-  
+
     const handleUserOnlineStatus = ({ userId, isOnline }: any) => {
       setUsers(prevUsers =>
         prevUsers.map(user =>
           user._id === userId ? { ...user, isOnline } : user
         )
       );
-  
-      if (selectedUser?._id === userId) {
-        setSelectedUser(prev => (prev ? { ...prev, isOnline } : null));
-      }
-    };
-  
-    if (socket) {
-      socket.on("newMessage", handleNewMessage);
-      socket.on("messageDelivered", handleMessageDelivered);
-      socket.on("messageSeen", handleMessageSeen);
-      socket.on("userOnlineStatus", handleUserOnlineStatus);
-  
-      return () => {
-        socket.off("newMessage", handleNewMessage);
-        socket.off("messageDelivered", handleMessageDelivered);
-        socket.off("messageSeen", handleMessageSeen);
-        socket.off("userOnlineStatus", handleUserOnlineStatus);
-      };
-    }
-  }, [socket, selectedUser]);
-
-  const handleFileUpload = async (file: File, type: 'image' | 'document' | 'video' | 'audio') => {
-    if (!selectedUser || !user || !socket) return;
-
-    try {
-      const formData = new FormData();
-      console.log(file)
-      formData.append('file', file);
-      formData.append('chatRoom', selectedUser.chatRoomId || '');
-      formData.append('sender', user._id);
-      formData.append('messageType', type);
-       console.log(formData)
-      const response = await axiosInstance.post('/messages/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      const message = response.data;
-      socket.emit('sendMessage', message);
-
-      
-      setMessages(prev => [...prev, message]);
-    } catch (error) {
-      console.error('Failed to upload file:', error);
-    }
-  };
-
-  const handleFileInput = (type: 'image' | 'document' | 'video' | 'audio') => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    
-    // Set accept attribute based on file type
-    switch (type) {
-      case 'image':
-        input.accept = 'image/*';
-        break;
-      case 'document':
-        input.accept = '.pdf,.doc,.docx,.txt';
-        break;
-      case 'video':
-        input.accept = 'video/*,.mp4,.mov,.avi,.webm,.mkv';
-        break;
-      case 'audio':
-        input.accept = 'audio/*,.mp3,.wav,.ogg,.aac'
-        break;
-    }
-
-    input.onchange = (e) => {
-      const files = (e.target as HTMLInputElement).files;
-      if (files && files.length > 0) {
-        handleFileUpload(files[0], type);
+      if (selectedUser?._id === userId && selectedUser!.isOnline !== isOnline) {
+        setSelectedUser(prev => (prev ? { ...prev, isOnline } : prev));
       }
     };
 
-    input.click();
-  };
+    socket.on("newMessage", handleNewMessage);
+    socket.on("messageDelivered", handleMessageDelivered);
+    socket.on("messageSeen", handleMessageSeen);
+    socket.on("userOnlineStatus", handleUserOnlineStatus);
 
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+      socket.off("messageDelivered", handleMessageDelivered);
+      socket.off("messageSeen", handleMessageSeen);
+      socket.off("userOnlineStatus", handleUserOnlineStatus);
+    };
+  }, [socket, user, selectedUser]);
+
+  // Typing indicators and room management
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (!selectedUser || !user || !selectedUser.chatRoomId) return;
-  
-      try {
-        const response = await axiosInstance.get(
-          `${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/messages?roomId=${selectedUser.chatRoomId}`
-        );
-        
-        setMessages(response.data);
-        
-        // Mark messages as seen when opening chat
-        if (socket && response.data.length > 0) {
-          const unseenMessages = response.data.filter(
-            (msg: Message) => msg.sender !== user._id && !msg.seenBy.includes(user._id)
-          );
-          
-          if (unseenMessages.length > 0) {
-            socket.emit('markMessagesAsSeen', {
-              messageIds: unseenMessages.map((msg: Message) => msg._id),
-              userId: user._id,
-              chatRoomId: selectedUser.chatRoomId
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch messages:', error);
-      }
-    };
-  
-    fetchMessages();
-  }, [selectedUser, user, socket]);
+    if (!socket || !user || !selectedUser?.chatRoomId) return;
 
-  useEffect(() => {
-    const storedUserString = localStorage.getItem('user');
-    if (storedUserString) {
-      try {
-        const parsedUser = JSON.parse(storedUserString);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Failed to parse user from localStorage:', error);
-      }
-    }
-  }, []);
-  
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await axiosInstance.get(
-          `${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/users`
-        );
-        const data: User[] = response.data;
-        setUsers(data);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-      }
-    };
+    socket.emit("userConnected", user._id);
+    socket.emit("joinRoom", selectedUser.chatRoomId);
 
-    fetchUsers();
-  }, []);
-
-  const handleUserClick = async (selectedUser: User) => {
-    try {
-      const response = await axiosInstance.post(
-        `${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/chatrooms`, 
-        {
-          user1: selectedUser._id,
-        }
+    const handleTyping = ({ userId }: { userId: string }) => {
+      setTypingUsers(prev => 
+        prev.includes(userId) ? prev : [...prev, userId]
       );
-    
-      const chatRoom = response.data.data.data;
-  
-      setSelectedUser({
-        ...selectedUser,
-        chatRoomId: chatRoom._id,
+    };
+
+    const handleStopTyping = ({ userId }: { userId: string }) => {
+      setTypingUsers(prev => prev.filter(id => id !== userId));
+    };
+
+    socket.on("userTyping", handleTyping);
+    socket.on("userStopTyping", handleStopTyping);
+
+    return () => {
+      socket.off("userTyping", handleTyping);
+      socket.off("userStopTyping", handleStopTyping);
+    };
+  }, [socket, user, selectedUser]);
+
+  // Debounced typing handlers
+  const emitStartTyping = useDebounce(() => {
+    if (selectedUser?.chatRoomId && user?._id) {
+      socket?.emit('startTyping', {
+        roomId: selectedUser.chatRoomId,
+        userId: user._id
       });
-      setMobileChatOpen(true);
-    } catch (error) {
-      console.error('Error creating/getting chat room:', error);
     }
-  };
+  }, 500);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, typingUsers]);
+  const emitStopTyping = useDebounce(() => {
+    if (selectedUser?.chatRoomId && user?._id) {
+      socket?.emit('stopTyping', {
+        roomId: selectedUser.chatRoomId,
+        userId: user._id
+      });
+    }
+  }, 1000);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Message handling
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedUser || !user || !socket) return;
-  
+
     const messageToSend = {
       chatRoom: selectedUser.chatRoomId,  
       sender: user._id,          
@@ -330,7 +239,7 @@ const ChatApp = () => {
       content: newMessage.trim(),
       fileName: null,                    
     };
-  
+
     try {
       const response = await axiosInstance.post('/messages', messageToSend);
       socket.emit('sendMessage', messageToSend);
@@ -343,10 +252,7 @@ const ChatApp = () => {
         typingTimeoutRef.current = null;
       }
       setIsTyping(false);
-      socket.emit('stopTyping', { 
-        roomId: selectedUser.chatRoomId,
-        userId: user._id
-      });
+      emitStopTyping();
       
       socket.on('lastMessageUpdate', ({ chatRoomId, lastMessage, time }) => {
         setUsers(prevUsers =>
@@ -357,38 +263,174 @@ const ChatApp = () => {
           )
         );
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
+      showError(error.response?.data?.message || 'Failed to send message');
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
-    
+
     // Typing indicator logic
     if (!isTyping && selectedUser?.chatRoomId) {
       setIsTyping(true);
-      socket?.emit('startTyping', { 
-        roomId: selectedUser.chatRoomId,
-        userId: user?._id
-      });
+      emitStartTyping();
     }
-    
+
     // Clear previous timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     // Set new timeout
     typingTimeoutRef.current = setTimeout(() => {
-      if (selectedUser?.chatRoomId) {
-        setIsTyping(false);
-        socket?.emit('stopTyping', { 
-          roomId: selectedUser.chatRoomId,
-          userId: user?._id
-        });
-      }
+      setIsTyping(false);
+      emitStopTyping();
     }, 2000);
+  };
+
+  // File handling
+  const handleFileUpload = async (file: File, type: 'image' | 'document' | 'video' | 'audio') => {
+    if (!selectedUser || !user || !socket) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('chatRoom', selectedUser.chatRoomId || '');
+      formData.append('sender', user._id);
+      formData.append('messageType', type);
+
+      const response = await axiosInstance.post('/messages/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      const message = response.data;
+      socket.emit('sendMessage', message);
+      setMessages(prev => [...prev, message]);
+    } catch (error: any) {
+      console.error('Failed to upload file:', error);
+      showError(error.response?.data?.message || 'Failed to upload file');
+    }
+  };
+
+  const handleFileInput = (type: 'image' | 'document' | 'video' | 'audio') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+
+    switch (type) {
+      case 'image': input.accept = 'image/*'; break;
+      case 'document': input.accept = '.pdf,.doc,.docx,.txt'; break;
+      case 'video': input.accept = 'video/*,.mp4,.mov,.avi,.webm,.mkv'; break;
+      case 'audio': input.accept = 'audio/*,.mp3,.wav,.ogg,.aac'; break;
+    }
+
+    input.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files && files.length > 0) {
+        handleFileUpload(files[0], type);
+      }
+    };
+
+    input.click();
+  };
+
+  
+  const fetchMessages = async () => {
+    if (!selectedUser || !user || !selectedUser.chatRoomId) return;
+
+    try {
+      const response = await axiosInstance.get(
+        `${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/messages?roomId=${selectedUser.chatRoomId}`
+      );
+      
+      setMessages(response.data);
+      
+      if (socket && response.data.length > 0) {
+        const unseenMessages = response.data.filter(
+          (msg: Message) => msg.sender !== user._id && !msg.seenBy.includes(user._id)
+        );
+        
+        if (unseenMessages.length > 0) {
+          socket.emit('markMessagesAsSeen', {
+            messageIds: unseenMessages.map((msg: Message) => msg._id),
+            userId: user._id,
+            chatRoomId: selectedUser.chatRoomId
+          });
+        }
+      }
+    } catch (error: any) {
+      console.log('Failed to fetch messages:', error);
+      
+    }
+  };
+
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      fetchMessages();
+    }, 300);
+  
+    return () => clearTimeout(timeout);
+  }, [selectedUser?.chatRoomId]);
+
+  useEffect(() => {
+    const storedUserString = localStorage.getItem('user');
+    if (storedUserString) {
+      try {
+        const parsedUser = JSON.parse(storedUserString);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Failed to parse user from localStorage:', error);
+        showError('Failed to load user data');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await axiosInstance.get(
+          `${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/users`
+        );
+        setUsers(response.data);
+      } catch (error: any) {
+        console.error('Error fetching users:', error);
+        showError(error.response?.data?.message || 'Failed to load contacts');
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  // User interactions
+  const handleUserClick = async (selectedUser: User) => {
+    try {
+      const response = await axiosInstance.post(
+        `${process.env.NEXT_PUBLIC_USER_BACKEND_URL}/chatrooms`,
+        { user1: selectedUser._id }
+      );
+
+      const chatRoom = response.data.data.data;
+      setSelectedUser({
+        ...selectedUser,
+        chatRoomId: chatRoom._id,
+      });
+      setMobileChatOpen(true);
+    } catch (error: any) {
+      console.error('Error creating/getting chat room:', error);
+      showError(error.response?.data?.message || 'Failed to start chat');
+    }
+  };
+
+  // UI helpers
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, typingUsers]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const filteredUsers = users.filter((user) =>
@@ -406,26 +448,37 @@ const ChatApp = () => {
 
   const getTypingIndicatorText = () => {
     if (typingUsers.length === 0) return null;
-    
+
     const typingNames = typingUsers.map(userId => {
       const user = users.find(u => u._id === userId);
       return user?.username || 'Someone';
     });
-    
-    if (typingNames.length === 1) {
-      return `${typingNames[0]} is typing...`;
-    } else if (typingNames.length === 2) {
-      return `${typingNames[0]} and ${typingNames[1]} are typing...`;
-    } else {
-      return `${typingNames[0]}, ${typingNames[1]}, and others are typing...`;
-    }
+
+    if (typingNames.length === 1) return `${typingNames[0]} is typing...`;
+    if (typingNames.length === 2) return `${typingNames[0]} and ${typingNames[1]} are typing...`;
+    return `${typingNames[0]}, ${typingNames[1]}, and others are typing...`;
   };
+
+  
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (socket) {
+        socket.disconnect();
+      }
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+    };
+  }, [socket, errorTimeout]);
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-800">
       {/* Sidebar */}
       <div className={`w-full md:w-96 border-r border-gray-200 bg-white flex flex-col transition-all duration-300 
-        ${mobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
+          ${mobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
         
         {/* Header */}
         <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 flex justify-between items-center">
@@ -441,7 +494,7 @@ const ChatApp = () => {
             <BsThreeDotsVertical size={20} />
           </button>
         </div>
-  
+
         {/* Search */}
         <div className="p-3 bg-white">
           <div className="relative">
@@ -457,7 +510,7 @@ const ChatApp = () => {
             />
           </div>
         </div>
-  
+
         {/* Contacts list */}
         <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
           {filteredUsers.length > 0 ? (
@@ -488,9 +541,13 @@ const ChatApp = () => {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <p className="text-sm text-gray-500 truncate pr-2">
-                      {user.lastMessage || <span className="italic text-gray-400">No messages yet</span>}
-                    </p>
+                  <p className="text-sm text-gray-500 truncate pr-2">
+  {user.lastMessage
+    ? user.lastMessage.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+      ? <span className="italic text-gray-400">🖼️ File</span>
+      : user.lastMessage
+    : <span className="italic text-gray-400">No messages yet</span>}
+</p>
                     {user.unread && user.unread > 0 && (
                       <span className="bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                         {user.unread}
@@ -511,7 +568,7 @@ const ChatApp = () => {
           )}
         </div>
       </div>
-  
+
       {/* Chat area */}
       {selectedUser ? (
         <div className="flex flex-col flex-1">
@@ -549,7 +606,7 @@ const ChatApp = () => {
               </div>
             </div>
           </div>
-  
+
           {/* Messages */}
           <div
             className="flex-1 p-4 overflow-y-auto bg-[#e5ddd5] bg-opacity-30"
@@ -559,9 +616,9 @@ const ChatApp = () => {
             }}
           >
             <div className="space-y-3">
-              {messages.map((msg:any,i) => (
+              {messages.map((msg: any, i) => (
                 <div
-                key={i}
+                  key={i}
                   className={`flex ${msg.sender === user?._id ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
@@ -572,42 +629,38 @@ const ChatApp = () => {
                       }`}
                   >
                     {msg.messageType === 'text' && (
-  <p className="text-gray-800">{msg.content}</p>
-)}
-
-{msg.messageType === 'image' && (
-  <img
-    src={msg.content}
-    alt="sent image"
-    className="max-w-full h-auto rounded"
-  />
-)}
-
-{msg.messageType === 'audio' && (
-  <audio controls className="w-full">
-    <source src={msg.content} type="audio/mpeg" />
-    Your browser does not support the audio element.
-  </audio>
-)}
-
-{msg.messageType === 'video' && (
-  <video controls className="w-full max-h-64">
-    <source src={msg.content} type="video/mp4" />
-    Your browser does not support the video tag.
-  </video>
-)}
-
-{msg.messageType === 'document' && (
-  <a
-    href={msg.content}
-    download
-    className="text-blue-500 underline break-words"
-    target="_blank"
-    rel="noopener noreferrer"
-  >
-    📄 Download Document
-  </a>
-)}
+                      <p className="text-gray-800">{msg.content}</p>
+                    )}
+                    {msg.messageType === 'image' && (
+                      <img
+                        src={msg.content}
+                        alt="sent image"
+                        className="max-w-full h-auto rounded"
+                      />
+                    )}
+                    {msg.messageType === 'audio' && (
+                      <audio controls className="w-full">
+                        <source src={msg.content} type="audio/mpeg" />
+                        Your browser does not support the audio element.
+                      </audio>
+                    )}
+                    {msg.messageType === 'video' && (
+                      <video controls className="w-full max-h-64">
+                        <source src={msg.content} type="video/mp4" />
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                    {msg.messageType === 'document' && (
+                      <a
+                        href={msg.content}
+                        download
+                        className="text-blue-500 underline break-words"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        📄 Download Document
+                      </a>
+                    )}
                     <div className={`flex justify-end text-xs mt-1 items-center space-x-1 
                       ${msg.sender === user?._id ? 'text-blue-600' : 'text-gray-500'}`}>
                       <span>{formatMessageTime(msg.createdAt)}</span>
@@ -655,11 +708,11 @@ const ChatApp = () => {
               <FiSmile size={22} />
             </button>
             <button 
-  className="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100"
-  onClick={() => setShowAttachmentModal(true)}
->
-  <FiPaperclip size={22} />
-</button>
+              className="p-2 text-gray-500 hover:text-blue-500 rounded-full hover:bg-gray-100"
+              onClick={() => setShowAttachmentModal(true)}
+            >
+              <FiPaperclip size={22} />
+            </button>
             <input
               type="text"
               placeholder="Type a message..."
@@ -697,17 +750,30 @@ const ChatApp = () => {
           </div>
         </div>
       )}
-       {showAttachmentModal && (
-      <AttachmentModal 
-        onClose={() => setShowAttachmentModal(false)}
-        onSelect={(type) => {
-          setShowAttachmentModal(false);
-          handleFileInput(type);
-        }}
-      />
-    )}
+
+      {/* Error notification */}
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
+          {error}
+          <button 
+            onClick={() => setError(null)}
+            className="ml-2 text-white hover:text-gray-200"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {showAttachmentModal && (
+        <AttachmentModal 
+          onClose={() => setShowAttachmentModal(false)}
+          onSelect={(type) => {
+            setShowAttachmentModal(false);
+            handleFileInput(type);
+          }}
+        />
+      )}
     </div>
-    
   );
 };
 

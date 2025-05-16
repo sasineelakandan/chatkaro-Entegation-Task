@@ -218,25 +218,46 @@ sendMessage = async (roomId: string, message: any): Promise<SuccessResponse> => 
 };
 
 
-getMessage=async(roomId: string): Promise<any>=> {
+
+getMessage = async (roomId: string, userId: string): Promise<any> => {
   try {
-    
     if (!roomId) {
-      throw new Error(`User with ID ${roomId} not found.`);
+      throw new Error(`Chat room with ID ${roomId} not found.`);
     }
 
     
-   
+    const messages = await Message.find({ chatRoom: roomId });
 
-     const message = await Message.find({chatRoom:roomId});
-   
+    
+    const unseenMessages = messages.filter(
+      (msg: any) => !msg.seenBy.includes(userId)
+    );
 
-    return message
-  } catch (error: any) {
-    console.error("Error in chatroom:", error);
-    throw new Error(error.message);
+    
+    await Message.updateMany(
+      {
+        chatRoom: roomId,
+        seenBy: { $ne: userId },
+      },
+      {
+        $addToSet: { seenBy: userId },
+      }
+    );
+
+    
+    const io = getIO();
+    io.to(roomId).emit('markMessagesAsSeen', {
+      messageIds: unseenMessages.map((msg: any) => msg._id),
+      userId,
+      chatRoomId: roomId,
+    });
+
+    return messages;
+  } catch (error) {
+    console.error("Error in getMessage:", error);
+    throw error;
   }
-}
+};
 
 
 

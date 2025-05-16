@@ -3,25 +3,25 @@ import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import { Request } from 'express';
 
-// Cloudinary config
+
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.API_KEY,
   api_secret: process.env.API_SECRET,
 });
 
-// Dynamic CloudinaryStorage
+
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req: Request, file: Express.Multer.File) => {
     const mime = file.mimetype;
 
-    // Default settings
+   
     let resourceType: 'image' | 'video' | 'raw' = 'raw';
     let folder = 'uploads';
     let allowed_formats: string[] = [];
 
-    // Set based on MIME type
+    
     if (mime.startsWith('image/')) {
       resourceType = 'image';
       folder = 'profile_pics';
@@ -48,7 +48,7 @@ const storage = new CloudinaryStorage({
   },
 });
 
-// Multer upload middleware
+
 const upload = multer({ storage });
 
 export default upload;

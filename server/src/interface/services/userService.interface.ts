@@ -6,6 +6,6 @@ export interface IUserService {
   userLogin(email: string, password: string): Promise<UserSignupOutput>;
   createChatroom(user:string,user1:string):Promise<SuccessResponse>;
   sendMessage(roomId:string,message:string):Promise<SuccessResponse>
-  // uploadFiles(roomId:string,message:string):Promise<SuccessResponse>
-  getMessage(roomId:string):Promise<any>
+  
+  getMessage(roomId:string,userId:string):Promise<any>
 }

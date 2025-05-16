@@ -207,15 +207,20 @@ getMessages = async (httpRequest: CustomRequest): Promise<ControllerResponse> =>
   try {
 
     const roomId = httpRequest?.query?.roomId;
-
+    const userId = httpRequest?.user?.id;
     
+    if (!userId) {
+      console.error('User ID not found in the request.');
+      throw new Error('Doctor ID is required to update the profile.');
+    }
+
     if (!roomId || typeof roomId !== 'string') {
       console.error('Invalid room ID');
       throw new Error('Room ID is required and must be a string.');
     }
 
     
-    const messages = await this.userService.getMessage(roomId);
+    const messages = await this.userService.getMessage(roomId,userId);
    
     return {
       headers: {

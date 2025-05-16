@@ -25,24 +25,18 @@ const MessageSchema = new mongoose.Schema(
     fileName: String,
     
     
-    seenBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    deliveredTo: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    deletedFor: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
+    seenBy: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
+    deliveredTo: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
+    deletedFor: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
   },
   {
     timestamps: true, 
