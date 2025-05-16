@@ -13,6 +13,7 @@ import { RiSendPlaneFill } from 'react-icons/ri';
 import { EmojiPicker } from '../component/EmojiPicker';
 import axiosInstance from '../utils/axiosInstance';
 import AttachmentModal from '../component/attachmentModel';
+import React from 'react';
 
 type User = {
   _id: string;
@@ -97,7 +98,7 @@ const ChatApp = () => {
     };
   }, [errorTimeout]);
 
-  // Initialize socket connection
+  
   useEffect(() => {
     if (!user) return;
 
@@ -121,7 +122,7 @@ const ChatApp = () => {
     };
   }, [user]);
 
-  // Socket event handlers
+  
   useEffect(() => {
     if (!socket || !user) return;
 
@@ -441,10 +442,18 @@ const ChatApp = () => {
     setNewMessage(prev => prev + emoji);
   };
 
-  const formatMessageTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // const formatMessageTime = (dateString: string) => {
+  //   const date = new Date(dateString);
+  //   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // };
+  const formatMessageTime = (timestamp: string | number | Date) => {
+    const date = new Date(timestamp);
+    if(!isNaN(date.getTime()) ){
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
   };
+  // return isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
 
   const getTypingIndicatorText = () => {
     if (typingUsers.length === 0) return null;
@@ -542,12 +551,17 @@ const ChatApp = () => {
                   </div>
                   <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-500 truncate pr-2">
-  {user.lastMessage
-    ? user.lastMessage.match(/\.(jpg|jpeg|png|gif|webp)$/i)
-      ? <span className="italic text-gray-400">🖼️ File</span>
-      : user.lastMessage
-    : <span className="italic text-gray-400">No messages yet</span>}
+  {user.lastMessage ? (
+    /^https:\/\/res\.cloudinary\.com\/.*\.(jpg|jpeg|png|gif|webp|mp4|webm|ogg|mp3|wav|m4a|pdf|doc|docx|ppt|pptx|txt)$/i.test(user.lastMessage) ? (
+      <span className="italic text-gray-400">📎 File</span>
+    ) : (
+      user.lastMessage
+    )
+  ) : (
+    <span className="italic text-gray-400">No messages yet</span>
+  )}
 </p>
+
                     {user.unread && user.unread > 0 && (
                       <span className="bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                         {user.unread}
@@ -617,10 +631,14 @@ const ChatApp = () => {
           >
             <div className="space-y-3">
               {messages.map((msg: any, i) => (
+               <React.Fragment key={i}>
+               {msg.content !== undefined  && (
+                
                 <div
                   key={i}
                   className={`flex ${msg.sender === user?._id ? 'justify-end' : 'justify-start'}`}
                 >
+                  
                   <div
                     className={`max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-lg shadow-sm relative
                       ${msg.sender === user?._id
@@ -628,8 +646,8 @@ const ChatApp = () => {
                         : 'bg-white rounded-tl-none'
                       }`}
                   >
-                    {msg.messageType === 'text' && (
-                      <p className="text-gray-800">{msg.content}</p>
+                   {msg.messageType === 'text' && msg.content.trim() !== '' && (
+                    <p className="text-gray-800">{msg.content.trim()}</p>
                     )}
                     {msg.messageType === 'image' && (
                       <img
@@ -664,6 +682,7 @@ const ChatApp = () => {
                     <div className={`flex justify-end text-xs mt-1 items-center space-x-1 
                       ${msg.sender === user?._id ? 'text-blue-600' : 'text-gray-500'}`}>
                       <span>{formatMessageTime(msg.createdAt)}</span>
+                      
                       {msg.sender === user?._id && (
                         <>
                           {msg.deliveredTo.includes(selectedUser._id) ? (
@@ -679,6 +698,9 @@ const ChatApp = () => {
                     </div>
                   </div>
                 </div>
+               )}
+               </React.Fragment>
+                
               ))}
               
               {/* Typing indicator */}

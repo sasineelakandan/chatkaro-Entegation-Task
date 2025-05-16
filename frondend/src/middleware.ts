@@ -39,20 +39,17 @@ export async function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-// Helper: Verifies JWT token from cookies
+
 async function verifyToken(tokenName: string, req: NextRequest): Promise<{ role: string | null }> {
   let token: string | null = null;
 
-  // 1. Try to get from cookie
+  
   const cookieToken = req.cookies.get(tokenName)?.value;
 
-  // 2. Try to get from Authorization header
-  const authHeader = req.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.split(' ')[1];
-  }
+  
+ 
 
-  // Fallback to cookie token if no Bearer token
+  
   if (!token && cookieToken) {
     token = cookieToken;
   }
